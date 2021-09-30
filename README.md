@@ -67,5 +67,53 @@ In general, the best practice is:
 * Create objects that you wish to be shared among all users of the Shiny application in the global or app-level scopes (e.g., loading data that users will share).
 * Create objects that you wish to be private to each user as session-level objects (e.g., generating a user avatar or displaying session settings).
 
+### 4. Use Caching Operations
+
+If you’ve used all of the previous tips and your application still runs slowly, it’s worth considering implementing caching operations. In 2018, RStudio introduced the ability to cache charts in the Shiny package. However, if you want to speed up repeated operations other than generating graphs, it is worth using a custom caching solution.
+
+One of my favorite packages that I use for this case is memoise. Memoise saves the results of new invocations of functions while reusing the answers from previous invocations of those functions.
+
+The memoise package currently offers 3 methods for storing cached objects:
+
+1. cache_mem - storing cache in RAM (default)
+2. cache_filesystem(path) - storing cache on the local disk
+3. cache_s3(s3_bucket) - storage in the AWS S3 file database
+
+The selected caching type is defined by the cache parameter in the memoise function.
+
+If our Shiny application is served by a single R process and its RAM consumption is low, the simplest method is to use the first option, cache_mem, where the target function is defined and its answers cached in the global environment in RAM. All users will then use shared cache results, and the actions of one user will speed up the calculations of others. You can see a simple example below:
+
+```r
+library(memoise)
+
+# Define an example expensive to calculate function
+expensive_function <- function(x) {
+    sum((1:x) ^ 2)
+    Sys.sleep(5)    # make it seem to take even longer
+  }
+
+system.time(expensive_function(1000)) # Takes at least 5 seconds
+    user  system elapsed 
+  0.013   0.016   5.002 
+system.time(expensive_function(1000)) # Still takes at least 5 seconds
+   user  system elapsed 
+  0.016   0.015   5.005 
+
+# Now, let's cache results using memoise and its default cache_memory
+
+memoised_expensive_function <- memoise(expensive_function)
+system.time(memoised_expensive_function(1000)) # Takes at least 5 seconds
+   user  system elapsed 
+  0.016   0.015   5.001 
+system.time(memoised_expensive_function(1000)) # Returns much faster
+   user  system elapsed 
+  0.015   0.000   0.015 
+````
+
+The danger associated with using in-memory caching, however, is that if you don’t manage the cached results, it will grow without bound and your Shiny application will eventually run out of memory. You can manage the cached results using the timeout and forget functions.
+
+If the application is served by many processes running on one server, the best option to ensure cache sharing among all users is to use cache_filesystem and store objects locally on the disk. Again, you will want to manage the cache, but you will be limited only by your available disk space.
+
+In the case of an extensive infrastructure using many servers, the easiest method will be to use cache_s3 which will store its cached values on a shared external file system – in this case, AWS S3.
 
 
