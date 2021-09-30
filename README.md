@@ -3,13 +3,13 @@
 Shiny tips &amp; tricks for improving apps and solving common problems
 
 
-1. Measure Where Your Shiny App Is Spending Its Time
+### 1. Measure Where Your Shiny App Is Spending Its Time
 
 Profvis allows you to measure the execution time and R memory consumption of R code. The package itself can generate a readable report that helps us identify inefficient parts of the code, and it can be used to test Shiny applications. You can see profvis in action here.
 
 If we are only interested in measuring a code fragment rather than a complete application, we may want to consider simpler tools such as the tictoc package, which measures the time elapsed to run a particular code fragment.
 
-2. Use Faster Functions
+### 2. Use Faster Functions
 
 Once you’ve profiled your application, take a hard look at the functions consuming the most time. You may achieve significant performance gains by replacing the functions you routinely use with faster alternatives.
 
@@ -55,9 +55,17 @@ output <- ifelse(frame$col1 + frame$col2 > 1, "big", "small")
 This vectorized version is easier to read and computes the same result about 100 times faster.
 
 
+### 3. Pay Attention to Object Scoping Rules in Shiny Apps
+
+* Global: Objects in global.R are loaded into R’s global environment. They persist even after an app stops. This matters in a normal R session, but not when the app is deployed to Shiny Server or Connect. 
+* Application-level: Objects defined in app.R outside of the server function are similar to global objects, except that their lifetime is the same as the app; when the app stops, they go away. These objects can be shared across all Shiny sessions served by a single R process and may serve multiple users.
+* Session-level: Objects defined within the server function are accessible only to one user session.
 
 
+In general, the best practice is:
 
+* Create objects that you wish to be shared among all users of the Shiny application in the global or app-level scopes (e.g., loading data that users will share).
+* Create objects that you wish to be private to each user as session-level objects (e.g., generating a user avatar or displaying session settings).
 
 
 
